@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <title>CAP - CDS project</title>
+
+        <script src="https://unpkg.com/react@16/umd/react.production.min.js"></script>
+        <script src="https://unpkg.com/react-dom@16/umd/react-dom.production.min.js"></script>
+        <script src="https://unpkg.com/babel-standalone@6.26.0/babel.js"></script>
+        <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" />
+    </head>
+
+    <body>
+        
+        <div id="root"></div>
+
+        <script type="text/babel">
+            const { useState, useEffect } = React;
+
+            const Header = (props) => {
+                return (
+                    <div class='row mt-4'>
+                        <div class='col-md-8'>
+                            <h3 class='text-muted'>Project list</h3>
+                        </div>
+                    </div>
+                )
+            }
+
+            const ProjectList = ({projects, onFetchProjectInfo}) => {
+                return (
+                    <div class='row mt-4'>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">#</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Description</th>
+                                    <th scope="col"># of Items</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {projects.map((projectItem,index)=>{
+                                    return (
+                                        <tr key={index}>
+                                            <td onClick={(e) => onFetchProjectInfo(projectItem.ID)}>{projectItem.ID}</td>
+                                            <td>{projectItem.name}</td>
+                                            <td>{projectItem.description}</td>
+                                            <td>{projectItem.qtyOfItems}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )
+            }
+
+            const ProjectItemDetail = ({item, index, onUpateProjectItemProp, onDeleteItem}) => {
+                return (
+                    <div class='row mt-4 border-top'>
+                        <div class='col-md-12'>
+                            <div class="form-group pt-3 font-weight-bold">
+                                <label for="itemID">
+                                     { (item && item.ID) ? 'Item ID (' + item.ID + ')' : 'New Item' }
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label for="tag">Item tag</label>
+                                <input class="form-control" 
+                                    name="tag"
+                                    id="tag"
+                                    onChange={(e) => onUpateProjectItemProp(item, index, e)}
+                                    defaultValue={item.tag} />
+                            </div>
+                            <div class="form-group">
+                                <label for="description">Item description</label>
+                                <input class="form-control" 
+                                    name="description"
+                                    id="description"
+                                    onChange={(e) => onUpateProjectItemProp(item, index, e)}
+                                    defaultValue={item.description} />
+                            </div>
+                            <div class="form-group">
+                                <button type="button" onClick={(e) => onDeleteItem(index)} class="btn float-right">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            const ProjectDetail = ({
+                project, onUpateProjectProp, onUpateProjectItemProp, onPatchProject, onAddProjectItem, onDeleteItem}) => {
+                return (
+                    <div class='container border'>
+                        <form>
+                            <div class='row mt-4'>
+                                <div class='col-md-12 font-weight-bold'>
+                                    Project detail ( ID : {project.ID} )
+                                </div>
+                            </div>
+                            <div class='row mt-4'>
+                                <div class='col-md-12'>
+                                    <div class="form-group">
+                                        <label for="name">Name</label>
+                                        <input class="form-control" id="name" value={project.name} readonly="true" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="description">Description</label>
+                                        <input class="form-control" 
+                                            name="description" 
+                                            id="description" 
+                                            onChange={onUpateProjectProp} 
+                                            defaultValue={project.description} />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class='row mt-4'>
+                                <div class='col-md-12'>
+                                    Project items
+                                    <button type="button" onClick={(e) => onAddProjectItem()} class="btn float-right">+</button>
+                                </div>
+                            </div>
+                            {project.Items.map((item,index)=>{
+                                return (
+                                    <ProjectItemDetail 
+                                        onUpateProjectItemProp={onUpateProjectItemProp}
+                                        onDeleteItem={onDeleteItem}
+                                        index={index}
+                                        item={item}/>
+                                );
+                            })}
+                            <div class='row mt-4'>
+                                <div class='col-md-12'>
+                                    <button type="button" onClick={(e) => onPatchProject()} class="btn btn-primary">Submit</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                )
+            }
+
+            const App = (props) => {
+                const [projects, setProjects] = useState([]);
+                const [project, setProject] = useState({});
+
+                const [selected, setSelected] = useState(false);
+
+                const fetchProjects = () => {
+                    axios.get(`/api/v1/ProjectList`) // ?$expand=Items
+                        .then((response) => {    
+                            // console.log ('[DEBUG] fetchProjects', response);                      
+                            const { status, data } = response;
+                            if (status == 200) {
+                                setProjects(data.value);
+                            }
+                        })
+                }
+
+                const fetchProjectInfo = (projectID) => {
+                    setSelected(false);
+
+                    axios.get(`/api/v1/Projects/`+ projectID + `?$expand=Items`)
+                        .then((response) => {    
+                            // console.log ('[DEBUG] fetchProjectInfo', response);                      
+                            const { status, data } = response;
+                            if (status == 200) {
+                                setProject(data);
+                                setSelected(true);
+                            }
+                        })
+                }
+
+                const patchProject = () => {
+                    axios.patch(`/api/v1/Projects/`+ project.ID, project)
+                        .then((response) => {    
+                            console.log ('[DEBUG] patchProject', response);                      
+                            const { status, data } = response;
+                            if (status == 200) {
+                                // reload data
+                                fetchProjects();
+                                setSelected(false);
+                            }
+                        })
+                }
+
+                const upateProjectProp = (e) => {
+                    // console.log ('[DEBUG] upateProjectProp', e);
+                    setProject({
+                        ...project,
+                        [e.target.name]: e.target.value.trim()
+                    });
+                }
+
+                const refreshProjectItems = () => {
+                    setProject({
+                        ...project,
+                        Items: [
+                            ...project.Items
+                        ]
+                    });
+                } 
+
+                const upateProjectItemProp = (item, index, e) => {
+                    // console.log ('[DEBUG] upateProjectItemProp', item, index, e);
+                    // update item
+                    project.Items[index] = {
+                        ...item,
+                        [e.target.name]: e.target.value.trim()
+                    };
+
+                    refreshProjectItems();
+                }
+
+                const addProjectItem = () => {
+                    project.Items.push({});
+
+                    refreshProjectItems();
+                }
+
+                const deleteItem = (index) => {
+                    project.Items.splice(index);
+
+                    refreshProjectItems();
+                }
+
+                useEffect(() => {
+                    fetchProjects();
+                }, []);
+
+                return (
+                    <div>    
+                        <div class='container'>
+                            <Header />
+
+                            <ProjectList 
+                                projects={projects}
+                                onFetchProjectInfo={fetchProjectInfo}
+                            />
+                        </div>
+
+                        {
+                            selected && 
+                            <ProjectDetail 
+                                onUpateProjectItemProp={upateProjectItemProp}
+                                onUpateProjectProp={upateProjectProp}
+                                onPatchProject={patchProject}
+                                onAddProjectItem={addProjectItem}
+                                onDeleteItem={deleteItem}
+                                project={project} />
+                        }
+
+                    </div>
+                );
+            }
+
+            ReactDOM.render(<App />, document.getElementById('root'))
+        </script>
+
+    </body>
+</html>
