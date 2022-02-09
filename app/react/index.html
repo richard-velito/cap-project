@@ -60,7 +60,7 @@
 
             const ProjectItemDetail = ({item, index, onUpateProjectItemProp, onDeleteItem}) => {
                 return (
-                    <div class='row mt-4 border-top'>
+                    <div class='row mt-4 border-top' key={(item.ID) ? item.ID : item.key}>
                         <div class='col-md-12'>
                             <div class="form-group pt-3 font-weight-bold">
                                 <label for="itemID">
@@ -73,7 +73,7 @@
                                     name="tag"
                                     id="tag"
                                     onChange={(e) => onUpateProjectItemProp(item, index, e)}
-                                    defaultValue={item.tag} />
+                                    value={item.tag} />
                             </div>
                             <div class="form-group">
                                 <label for="description">Item description</label>
@@ -81,7 +81,7 @@
                                     name="description"
                                     id="description"
                                     onChange={(e) => onUpateProjectItemProp(item, index, e)}
-                                    defaultValue={item.description} />
+                                    value={item.description} />
                             </div>
                             <div class="form-group">
                                 <button type="button" onClick={(e) => onDeleteItem(index)} class="btn float-right">Remove</button>
@@ -148,10 +148,20 @@
 
                 const [selected, setSelected] = useState(false);
 
+                // helper
+                const generateUUID = (digits) => {
+                    let str = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVXZ';
+                    let uuid = [];
+                    for (let i = 0; i < digits; i++) {
+                        uuid.push(str[Math.floor(Math.random() * str.length)]);
+                    }
+                    return uuid.join('');
+                }
+
                 const fetchProjects = () => {
                     axios.get(`/api/v1/ProjectList`) // ?$expand=Items
                         .then((response) => {    
-                            // console.log ('[DEBUG] fetchProjects', response);                      
+                            console.log ('[DEBUG] fetchProjects', response);                      
                             const { status, data } = response;
                             if (status == 200) {
                                 setProjects(data.value);
@@ -194,36 +204,39 @@
                     });
                 }
 
-                const refreshProjectItems = () => {
-                    setProject({
-                        ...project,
-                        Items: [
-                            ...project.Items
-                        ]
-                    });
-                } 
+                const updateProjectItems = (items) => {
+                    setProject( prev => ({
+                        ...prev,
+                        Items: [...items]
+                    }));
+                }
 
                 const upateProjectItemProp = (item, index, e) => {
                     // console.log ('[DEBUG] upateProjectItemProp', item, index, e);
-                    // update item
-                    project.Items[index] = {
-                        ...item,
+                    const items = [...project.Items];
+                    items[index] = {
+                        ...items[index],
                         [e.target.name]: e.target.value.trim()
                     };
 
-                    refreshProjectItems();
+                    updateProjectItems(items);
                 }
 
                 const addProjectItem = () => {
-                    project.Items.push({});
+                    const items = [
+                        ...project.Items,
+                        { key: generateUUID(32) }
+                    ];
 
-                    refreshProjectItems();
+                    updateProjectItems(items);
                 }
 
                 const deleteItem = (index) => {
-                    project.Items.splice(index);
+                    const items = [...project.Items].filter((element, i) => {
+                        return i !== index;
+                    });
 
-                    refreshProjectItems();
+                    updateProjectItems(items);
                 }
 
                 useEffect(() => {
