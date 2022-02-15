@@ -1,6 +1,6 @@
 using { sap.demo.project as my } from '../db/schema';
 
-service ProjectService @(path:'/api/v1') {
+service ProjectService @(path:'/browse') {
 
   @readonly entity ProjectList as projection on Projects {
     *,

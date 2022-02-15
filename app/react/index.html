@@ -59,12 +59,23 @@
             }
 
             const ProjectItemDetail = ({item, index, onUpateProjectItemProp, onDeleteItem}) => {
+                
+                // helper
+                const generateUUID = (digits) => {
+                    let str = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVXZ';
+                    let uuid = [];
+                    for (let i = 0; i < digits; i++) {
+                        uuid.push(str[Math.floor(Math.random() * str.length)]);
+                    }
+                    return uuid.join('');
+                }
+
                 return (
-                    <div class='row mt-4 border-top' key={(item.ID) ? item.ID : item.key}>
+                    <div class='row mt-4 border-top' key={(item.ID) ? item.ID : generateUUID()}>
                         <div class='col-md-12'>
                             <div class="form-group pt-3 font-weight-bold">
                                 <label for="itemID">
-                                     { (item && item.ID) ? 'Item ID (' + item.ID + ')' : 'New Item' }
+                                     { (item && item.ID) ? `Item ID (${item.ID})` : 'New Item' }
                                 </label>
                             </div>
                             <div class="form-group">
@@ -92,20 +103,25 @@
             }
 
             const ProjectDetail = ({
-                project, onUpateProjectProp, onUpateProjectItemProp, onPatchProject, onAddProjectItem, onDeleteItem}) => {
+                project, onUpateProjectProp, onUpateProjectItemProp, onSaveOrUpdateProject, onAddProjectItem, onDeleteItem}) => {
                 return (
                     <div class='container border'>
                         <form>
                             <div class='row mt-4'>
                                 <div class='col-md-12 font-weight-bold'>
-                                    Project detail ( ID : {project.ID} )
+                                    { (project && project.ID) ? `Project detail ( ID : ${project.ID} )` : 'New Project' }
                                 </div>
                             </div>
                             <div class='row mt-4'>
                                 <div class='col-md-12'>
                                     <div class="form-group">
                                         <label for="name">Name</label>
-                                        <input class="form-control" id="name" value={project.name} readonly="true" />
+                                        <input class="form-control" 
+                                            name="name" 
+                                            id="name" 
+                                            value={project.name} 
+                                            onChange={onUpateProjectProp} 
+                                            readOnly={(project && project.ID)} />
                                     </div>
                                     <div class="form-group">
                                         <label for="description">Description</label>
@@ -123,7 +139,7 @@
                                     <button type="button" onClick={(e) => onAddProjectItem()} class="btn float-right">+</button>
                                 </div>
                             </div>
-                            {project.Items.map((item,index)=>{
+                            {project.Items && project.Items.map((item,index)=>{
                                 return (
                                     <ProjectItemDetail 
                                         onUpateProjectItemProp={onUpateProjectItemProp}
@@ -134,7 +150,7 @@
                             })}
                             <div class='row mt-4'>
                                 <div class='col-md-12'>
-                                    <button type="button" onClick={(e) => onPatchProject()} class="btn btn-primary">Submit</button>
+                                    <button type="button" onClick={(e) => onSaveOrUpdateProject()} class="btn btn-primary">Submit</button>
                                 </div>
                             </div>
                         </form>
@@ -143,23 +159,14 @@
             }
 
             const App = (props) => {
+                const endpoint =  '/browse/';
                 const [projects, setProjects] = useState([]);
                 const [project, setProject] = useState({});
 
                 const [selected, setSelected] = useState(false);
 
-                // helper
-                const generateUUID = (digits) => {
-                    let str = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVXZ';
-                    let uuid = [];
-                    for (let i = 0; i < digits; i++) {
-                        uuid.push(str[Math.floor(Math.random() * str.length)]);
-                    }
-                    return uuid.join('');
-                }
-
                 const fetchProjects = () => {
-                    axios.get(`/api/v1/ProjectList`) // ?$expand=Items
+                    axios.get(`${endpoint}ProjectList`) // ?$expand=Items
                         .then((response) => {    
                             console.log ('[DEBUG] fetchProjects', response);                      
                             const { status, data } = response;
@@ -172,7 +179,7 @@
                 const fetchProjectInfo = (projectID) => {
                     setSelected(false);
 
-                    axios.get(`/api/v1/Projects/`+ projectID + `?$expand=Items`)
+                    axios.get(`${endpoint}Projects/`+ projectID + `?$expand=Items`)
                         .then((response) => {    
                             // console.log ('[DEBUG] fetchProjectInfo', response);                      
                             const { status, data } = response;
@@ -183,24 +190,34 @@
                         })
                 }
 
-                const patchProject = () => {
-                    axios.patch(`/api/v1/Projects/`+ project.ID, project)
+                const saveOrUpdateProject = () => {
+
+                    let client;
+                    if (project && project.ID) {
+                        // PATCH
+                        client = axios.patch(`${endpoint}Projects/`+ project.ID, project);
+                    } else {
+                        // POST
+                        client = axios.post(`${endpoint}Projects`, project);
+                    }
+
+                    client
                         .then((response) => {    
                             console.log ('[DEBUG] patchProject', response);                      
                             const { status, data } = response;
-                            if (status == 200) {
+                            if (status == 200 || status == 201) {
                                 // reload data
                                 fetchProjects();
                                 setSelected(false);
                             }
-                        })
+                        });
                 }
 
                 const upateProjectProp = (e) => {
                     // console.log ('[DEBUG] upateProjectProp', e);
                     setProject({
                         ...project,
-                        [e.target.name]: e.target.value.trim()
+                        [e.target.name]: e.target.value
                     });
                 }
 
@@ -216,7 +233,7 @@
                     const items = [...project.Items];
                     items[index] = {
                         ...items[index],
-                        [e.target.name]: e.target.value.trim()
+                        [e.target.name]: e.target.value
                     };
 
                     updateProjectItems(items);
@@ -225,7 +242,7 @@
                 const addProjectItem = () => {
                     const items = [
                         ...project.Items,
-                        { key: generateUUID(32) }
+                        { }
                     ];
 
                     updateProjectItems(items);
@@ -239,6 +256,11 @@
                     updateProjectItems(items);
                 }
 
+                const onAddProject = () => {
+                    setProject( { Items: [] } );
+                    setSelected(true);
+                }
+
                 useEffect(() => {
                     fetchProjects();
                 }, []);
@@ -247,7 +269,16 @@
                     <div>    
                         <div class='container'>
                             <Header />
-
+                            
+                            {
+                                !selected && 
+                                <div class='row mt-4'>
+                                    <div class='col-md-12'>
+                                        <button type="button" onClick={(e) => onAddProject()} class="btn float-right">Add project</button>
+                                    </div>
+                                </div>
+                            }
+                            
                             <ProjectList 
                                 projects={projects}
                                 onFetchProjectInfo={fetchProjectInfo}
@@ -259,7 +290,7 @@
                             <ProjectDetail 
                                 onUpateProjectItemProp={upateProjectItemProp}
                                 onUpateProjectProp={upateProjectProp}
-                                onPatchProject={patchProject}
+                                onSaveOrUpdateProject={saveOrUpdateProject}
                                 onAddProjectItem={addProjectItem}
                                 onDeleteItem={deleteItem}
                                 project={project} />

@@ -4,7 +4,11 @@
   "dependencies": {
     "@sap/cds": "^5.0.4",
     "express": "^4.17.1",
-    "passport": "0.4.1"
+    "passport": "0.4.1",
+    "hdb": "^0.18.3"
+  },
+  "engines": {
+    "node": "^16"
   },
   "scripts": {
     "start": "cds run",
@@ -15,6 +19,9 @@
       "db": {
         "kind": "sql"
       }
+    },
+    "hana": {
+      "deploy-format": "hdbtable"
     }
   }
 }

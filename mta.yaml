@@ -1,0 +1,104 @@
+---
+_schema-version: '3.1'
+ID: richardvelito.projects
+version: 1.0.0
+description: "projects"
+parameters:
+  enable-parallel-deployments: true
+  deploy_mode: html5-repo
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npm ci
+        - npx -p @sap/cds-dk cds build --production
+        - npx rimraf gen/db/src/gen/data
+
+modules:
+  - name: projects-srv
+    type: nodejs
+    path: gen/srv
+    parameters:
+      buildpack: nodejs_buildpack
+    build-parameters:
+      builder: npm-ci
+    provides:
+      - name: srv-api # required by consumers of CAP services (e.g. approuter)
+        properties:
+          srv-url: ${default-url}
+    requires:
+      - name: projects-db
+
+  - name: projects-db-deployer
+    type: hdb
+    path: gen/db
+    parameters:
+      buildpack: nodejs_buildpack
+    requires:
+      - name: projects-db
+
+ # --------------------- HTML5DEPLOYER MODULE -----------------
+  - name: projects-hmtl5-deployer
+    type: com.sap.html5.application-content
+    path: html5deployer
+    requires:
+     - name: projects-html5-host
+    build-parameters:
+     requires:
+       - name: projects-app
+         artifacts:
+           - './*'
+         target-path: resources/app
+
+ # --------------------- REACT APP MODULE ---------------------
+  - name: projects-app
+    type: html5
+    path: app
+    build-parameters:
+       supported-platforms: []
+       build-result: react # This is the folder containing the build files
+
+ # --------------------- APPROUTER MODULE ---------------------
+  - name: projects-approuter
+    type: approuter.nodejs
+    path: approuter
+    requires:
+     - name: projects-html5-runtime
+     - name: projects-xsuaa
+     - name: srv-api
+       group: destinations
+       properties:
+         name: srv-api
+         url: ~{srv-url}
+         forwardAuthToken: true
+
+resources:
+  - name: projects-db
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana # or 'hanatrial' on trial landscapes
+      service-plan: hdi-shared
+    properties:
+      hdi-service-name: ${service-name}
+ # --------------------- HTML5 Runtime ----------------------
+  - name: projects-html5-runtime
+    parameters:
+      service-name: projects-html5-runtime
+      service-plan: app-runtime
+      service: html5-apps-repo
+    type: org.cloudfoundry.managed-service
+
+# --------------------- HTML5 Host -------------------------
+  - name: projects-html5-host
+    parameters:
+      service-name: projects-html5-host
+      service-plan: app-host
+      service: html5-apps-repo
+    type: org.cloudfoundry.managed-service
+# --------------------- XSUAA Service ---------------------
+  - name: projects-xsuaa
+    parameters:
+       path: ./xs-security.json
+       service-plan: application
+       service: xsuaa
+    type: org.cloudfoundry.managed-service

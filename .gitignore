@@ -1,3 +1,27 @@
+# CAP
+gen/
+edmx/
+schema.sql
+schema-nomocks.sql
+default-env.json
+openapi.json
+
+.project_mta_build_tmp
+
+.mta/
+*.mtar
+# mta.yaml
+
+*.log*
+gc_history*
+hs_err*
+.DS_Store
+
+*.db
+
+.cdsrc-private.json
+package-lock.json
+
 # Logs
 logs
 *.log
@@ -39,6 +63,7 @@ build/Release
 
 # Dependency directories
 node_modules/
+*/node_modules/
 jspm_packages/
 
 # TypeScript v1 declaration files
@@ -102,3 +127,9 @@ dist
 
 # TernJS port file
 .tern-port
+
+# cap framework
+html5deployer/resources
+Makefile*.mta
+db/src
+db/undeploy.json
